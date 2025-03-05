@@ -34,7 +34,7 @@ const generateEmployeeID = async () => {
 // Register Employee
 const registerEmployee = async (req, res) => {
   try {
-    const { FullName, age, gender, phone,EmailID, password, companyName, salary, address } = req.body;
+    const { FullName, age, gender, phone, EmailID, password, companyName, salary, address } = req.body;
 
     // Check if the email already exists
     const existingUser = await Employee.findOne({ EmailID });
@@ -91,11 +91,15 @@ const loginEmployee = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    res.json({ message: "Login successful", token });
+    // Exclude password from response
+    const { password: _, ...employeeData } = employee.toObject();
+
+    res.json({ message: "Login successful", token, employeeData });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 // Get All Employees
 const getAllEmployees = async (req, res) => {
@@ -110,7 +114,7 @@ const getAllEmployees = async (req, res) => {
 // Get Employee by ID
 const getEmployeeById = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ employeeId: req.params.id });
+    const employee = await Employee.findOne({ employeeId: req.params.id }).select("-password");
     if (!employee) return res.status(404).json({ message: "Employee not found" });
     res.json(employee);
   } catch (err) {
