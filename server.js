@@ -13,15 +13,17 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 app.use("/uploads", express.static("uploads"));
-
+app.use(express.urlencoded({ extended: true })); 
 // MongoDB Connection
-mongoose
-  .connect("mongodb+srv://meesalavaralakshmi:guru1234@vara.eodmf.mongodb.net/employeeDB", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log(err));
+
+require("dotenv").config();
+
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => console.log("MongoDB connected"))
+  .catch(err => console.error("MongoDB connection error:", err));
+
 
 // Routes
 app.use("/api/employees", employeeRoutes);

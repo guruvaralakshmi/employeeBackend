@@ -13,7 +13,7 @@ const {
 const router = express.Router();
 
 // Set up Multer for file uploads
-const storage = multer.diskStorage({
+const storage = multer.diskStorage({ 
     destination: "./uploads/",
     filename: (req, file, cb) => {
         cb(null, file.fieldname + "-" + Date.now() + path.extname(file.originalname));

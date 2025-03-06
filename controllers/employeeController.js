@@ -34,71 +34,97 @@ const generateEmployeeID = async () => {
 // Register Employee
 const registerEmployee = async (req, res) => {
   try {
-    const { FullName, age, gender, phone, EmailID, password, companyName, salary, address } = req.body;
+    const { FullName, age, gender, phone, email, password, companyName, salary, address } = req.body;
 
-    // Check if the email already exists
-    const existingUser = await Employee.findOne({ EmailID });
-    if (existingUser) return res.status(400).json({ message: "Email already exists" });
+    if (!email || email.trim() === "") {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    
+    
+    // Check if email already exists
+    const existingUser = await Employee.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
 
-    // Hash the password
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Generate unique Employee ID
     const employeeId = await generateEmployeeID();
 
     // Get uploaded photo path
-    const photo = req.file ? req.file.path : "";  // Store file path
+    const photo = req.file ? req.file.path : "";
 
-    // Create new employee
+    // Create and save employee
     const newEmployee = new Employee({
       employeeId,
       FullName,
       age,
       gender,
       phone,
-      EmailID,
+      email,  
       password: hashedPassword,
       companyName,
       salary,
       address,
-      photo,  // Add photo
+      photo,
     });
 
     await newEmployee.save();
+
     res.status(201).json({ message: "Employee registered successfully", employeeId, photo });
-  } catch (err) {
+  } 
+  catch (err) {  // Ensure there is a 'catch' block
+    console.error("Error saving employee:", err);
+
+    // Handle MongoDB duplicate key error
+    if (err.code === 11000) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+
 
 // Login Employee
 const loginEmployee = async (req, res) => {
   try {
-    const { EmailID, password } = req.body;
+    const { email, password } = req.body;
+
+    // Validate input fields
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
     // Find employee by email
-    const employee = await Employee.findOne({ EmailID });
-    if (!employee) return res.status(401).json({ message: "Invalid email or password" });
+    const employee = await Employee.findOne({ email }).select("+password"); // Ensure password is selected
+    if (!employee || !employee.password) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
 
     // Compare password
     const isMatch = await bcrypt.compare(password, employee.password);
-    if (!isMatch) return res.status(401).json({ message: "Invalid email or password" });
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
 
     // Generate JWT token
     const token = jwt.sign(
       { employeeId: employee.employeeId },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || "defaultSecretKey", // Use fallback secret key if env is undefined
       { expiresIn: "1h" }
     );
 
-    // Exclude password from response
-    const { password: _, ...employeeData } = employee.toObject();
-
-    res.json({ message: "Login successful", token, employeeData });
+    res.json({ message: "Login successful", token });
   } catch (err) {
+    console.error("Login Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 
 // Get All Employees
@@ -114,21 +140,26 @@ const getAllEmployees = async (req, res) => {
 // Get Employee by ID
 const getEmployeeById = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ employeeId: req.params.id }).select("-password");
+    const employee = await Employee.findOne({ employeeId: req.params.id }).select("+password"); // 🔥 Force fetch password
+
     if (!employee) return res.status(404).json({ message: "Employee not found" });
-    res.json(employee);
+
+    console.log("Fetched Employee:", employee);  
+    res.json(employee); // Return employee data with password
   } catch (err) {
+    console.error("Error fetching employee:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
+
 // Update Employee
 const updateEmployee = async (req, res) => {
   try {
-    const { name, age, gender, phone, companyName, salary, address } = req.body;
+    const { FullName, age, gender, phone,email, companyName, salary, address } = req.body;
 
     // Update data object
-    const updateData = { name, age, gender, phone, companyName, salary, address };
+    const updateData = { FullName, age, gender, phone,email, companyName, salary, address };
     
     // If new photo is uploaded, update it
     if (req.file) updateData.photo = req.file.path; 
