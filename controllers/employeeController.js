@@ -100,7 +100,7 @@ const loginEmployee = async (req, res) => {
     }
 
     // Find employee by email
-    const employee = await Employee.findOne({ email }).select("+password"); // Ensure password is selected
+    const employee = await Employee.findOne({ email }).select("+password"); 
     if (!employee || !employee.password) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
@@ -114,16 +114,21 @@ const loginEmployee = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { employeeId: employee.employeeId },
-      process.env.JWT_SECRET || "defaultSecretKey", // Use fallback secret key if env is undefined
+      process.env.JWT_SECRET || "defaultSecretKey",
       { expiresIn: "1h" }
     );
 
-    res.json({ message: "Login successful", token });
+    // Remove password before sending response
+    const employeeData = employee.toObject();
+    delete employeeData.password;
+
+    res.json({ message: "Login successful", token, employeeData });
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 
 
