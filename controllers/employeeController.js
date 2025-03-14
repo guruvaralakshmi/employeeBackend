@@ -157,10 +157,10 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
-// Search Employee by Name
+// 🔥 Search Employee by Name (Updated Route)
 const searchEmployeeByName = async (req, res) => {
   try {
-    const name = req.query.name; // Use req.query instead of req.params
+    const { name } = req.params; // Using req.params instead of req.query
 
     if (!name) {
       return res.status(400).json({ message: "Name parameter is required" });
@@ -178,8 +178,6 @@ const searchEmployeeByName = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
-
-
 
 module.exports = {
   registerEmployee,

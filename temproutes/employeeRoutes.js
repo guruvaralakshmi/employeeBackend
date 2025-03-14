@@ -13,7 +13,7 @@ const {
 
 const router = express.Router();
 
-// Set up Multer for file uploads
+// Multer Setup for Image Uploads
 const storage = multer.diskStorage({
   destination: "./uploads/",
   filename: (req, file, cb) => {
@@ -29,6 +29,6 @@ router.get("/", getAllEmployees);
 router.get("/:id", getEmployeeById);
 router.put("/:id", upload.single("photo"), updateEmployee);
 router.delete("/:id", deleteEmployee);
-router.get("/search/:name", searchEmployeeByName); // Search route
+router.get("/search/:name", searchEmployeeByName); // 🔥 Correct Search Route
 
 module.exports = router;
