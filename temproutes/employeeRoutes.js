@@ -7,17 +7,18 @@ const {
   getAllEmployees,
   getEmployeeById,
   updateEmployee,
-  deleteEmployee
+  deleteEmployee,
+  searchEmployeeByName
 } = require("../controllers/employeeController");
 
 const router = express.Router();
 
 // Set up Multer for file uploads
-const storage = multer.diskStorage({ 
-    destination: "./uploads/",
-    filename: (req, file, cb) => {
-        cb(null, file.fieldname + "-" + Date.now() + path.extname(file.originalname));
-    }
+const storage = multer.diskStorage({
+  destination: "./uploads/",
+  filename: (req, file, cb) => {
+    cb(null, file.fieldname + "-" + Date.now() + path.extname(file.originalname));
+  }
 });
 const upload = multer({ storage: storage });
 
@@ -28,5 +29,6 @@ router.get("/", getAllEmployees);
 router.get("/:id", getEmployeeById);
 router.put("/:id", upload.single("photo"), updateEmployee);
 router.delete("/:id", deleteEmployee);
+router.get("/search/:name", searchEmployeeByName); // Search route
 
 module.exports = router;
