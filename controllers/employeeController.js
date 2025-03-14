@@ -4,7 +4,10 @@ const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const path = require("path");
 
-// Multer Config for File Upload
+// Backend URL (Update this if hosting changes)
+const BASE_URL = "https://employeebackend-5qt6.onrender.com";
+
+// Multer Config for File Uploads
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
@@ -32,10 +35,11 @@ const generateEmployeeID = async () => {
 const registerEmployee = async (req, res) => {
   try {
     const { FullName, age, gender, phone, email, password, companyName, salary, address } = req.body;
+
     if (!email || email.trim() === "") {
       return res.status(400).json({ message: "Email is required" });
     }
-    
+
     const existingUser = await Employee.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
@@ -43,7 +47,7 @@ const registerEmployee = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const employeeId = await generateEmployeeID();
-    const photo = req.file ? req.file.path : "";
+    const photoPath = req.file ? `uploads/${req.file.filename}` : null;
 
     const newEmployee = new Employee({
       employeeId,
@@ -56,16 +60,19 @@ const registerEmployee = async (req, res) => {
       companyName,
       salary,
       address,
-      photo,
+      photo: photoPath,
     });
 
     await newEmployee.save();
-    res.status(201).json({ message: "Employee registered successfully", employeeId, photo });
+    
+    res.status(201).json({
+      message: "Employee registered successfully",
+      employeeId,
+      photo: photoPath ? `${BASE_URL}/${photoPath}` : null,
+    });
+
   } catch (err) {
     console.error("Error saving employee:", err);
-    if (err.code === 11000) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
@@ -79,7 +86,7 @@ const loginEmployee = async (req, res) => {
     }
 
     const employee = await Employee.findOne({ email }).select("+password");
-    if (!employee || !employee.password) {
+    if (!employee) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
@@ -94,10 +101,17 @@ const loginEmployee = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    const employeeData = employee.toObject();
-    delete employeeData.password;
+    res.json({
+      message: "Login successful",
+      token,
+      employee: {
+        employeeId: employee.employeeId,
+        FullName: employee.FullName,
+        email: employee.email,
+        photo: employee.photo ? `${BASE_URL}/${employee.photo}` : null,
+      },
+    });
 
-    res.json({ message: "Login successful", token, employeeData });
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -108,7 +122,12 @@ const loginEmployee = async (req, res) => {
 const getAllEmployees = async (req, res) => {
   try {
     const employees = await Employee.find();
-    res.json(employees);
+    res.json(
+      employees.map((employee) => ({
+        ...employee.toObject(),
+        photo: employee.photo ? `${BASE_URL}/${employee.photo}` : null,
+      }))
+    );
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -119,7 +138,11 @@ const getEmployeeById = async (req, res) => {
   try {
     const employee = await Employee.findOne({ employeeId: req.params.id }).select("+password");
     if (!employee) return res.status(404).json({ message: "Employee not found" });
-    res.json(employee);
+
+    res.json({
+      ...employee.toObject(),
+      photo: employee.photo ? `${BASE_URL}/${employee.photo}` : null,
+    });
   } catch (err) {
     console.error("Error fetching employee:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -131,7 +154,8 @@ const updateEmployee = async (req, res) => {
   try {
     const { FullName, age, gender, phone, email, companyName, salary, address } = req.body;
     const updateData = { FullName, age, gender, phone, email, companyName, salary, address };
-    if (req.file) updateData.photo = req.file.path;
+    
+    if (req.file) updateData.photo = `uploads/${req.file.filename}`;
 
     const employee = await Employee.findOneAndUpdate(
       { employeeId: req.params.id },
@@ -140,7 +164,12 @@ const updateEmployee = async (req, res) => {
     );
 
     if (!employee) return res.status(404).json({ message: "Employee not found" });
-    res.json(employee);
+
+    res.json({
+      ...employee.toObject(),
+      photo: employee.photo ? `${BASE_URL}/${employee.photo}` : null,
+    });
+
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -151,17 +180,18 @@ const deleteEmployee = async (req, res) => {
   try {
     const employee = await Employee.findOneAndDelete({ employeeId: req.params.id });
     if (!employee) return res.status(404).json({ message: "Employee not found" });
+
     res.json({ message: "Employee deleted successfully" });
+
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
-// 🔥 Search Employee by Name (Updated Route)
+// 🔥 Search Employee by Name (Updated)
 const searchEmployeeByName = async (req, res) => {
   try {
-    const { name } = req.params; // Using req.params instead of req.query
-
+    const { name } = req.params;
     if (!name) {
       return res.status(400).json({ message: "Name parameter is required" });
     }
@@ -172,7 +202,13 @@ const searchEmployeeByName = async (req, res) => {
       return res.status(404).json({ message: "No employees found" });
     }
 
-    res.json(employees[0]); // Send the first matching employee
+    res.json(
+      employees.map((employee) => ({
+        ...employee.toObject(),
+        photo: employee.photo ? `${BASE_URL}/${employee.photo}` : null,
+      }))
+    );
+
   } catch (err) {
     console.error("Search Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -187,5 +223,4 @@ module.exports = {
   updateEmployee,
   deleteEmployee,
   searchEmployeeByName,
-  upload,
 };
