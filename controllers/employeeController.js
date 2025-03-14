@@ -160,20 +160,25 @@ const deleteEmployee = async (req, res) => {
 // Search Employee by Name
 const searchEmployeeByName = async (req, res) => {
   try {
-    const name = req.params.name;
+    const name = req.query.name; // Use req.query instead of req.params
+
+    if (!name) {
+      return res.status(400).json({ message: "Name parameter is required" });
+    }
+
     const employees = await Employee.find({ FullName: { $regex: name, $options: "i" } });
 
     if (employees.length === 0) {
       return res.status(404).json({ message: "No employees found" });
     }
 
-    // Return only the first matched employee (not an array)
-    res.json(employees[0]);
+    res.json(employees[0]); // Send the first matching employee
   } catch (err) {
     console.error("Search Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 
 module.exports = {
