@@ -162,15 +162,19 @@ const searchEmployeeByName = async (req, res) => {
   try {
     const name = req.params.name;
     const employees = await Employee.find({ FullName: { $regex: name, $options: "i" } });
+
     if (employees.length === 0) {
       return res.status(404).json({ message: "No employees found" });
     }
-    res.json(employees);
+
+    // Return only the first matched employee (not an array)
+    res.json(employees[0]);
   } catch (err) {
     console.error("Search Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 module.exports = {
   registerEmployee,
