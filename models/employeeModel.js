@@ -9,7 +9,6 @@ const EmployeeSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true, select: false },
   companyName: { type: String, required: true },
-  salary: { type: Number, required: false },
   address: { type: String, required: true },
   photo: { type: String },
 });

@@ -30,5 +30,9 @@ router.get("/:id", getEmployeeById);
 router.put("/:id", upload.single("photo"), updateEmployee);
 router.delete("/:id", deleteEmployee);
 router.get("/search/:name", searchEmployeeByName); // 🔥 Correct Search Route
+router.get("/uploads/:filename", (req, res) => {
+  res.sendFile(path.join(__dirname, "../uploads", req.params.filename));
+});
+
 
 module.exports = router;
