@@ -8,49 +8,41 @@ const path = require("path");
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
-    cb(null, "uploads/"); // Unique filename
+    cb(null, file.fieldname + "-" + Date.now() + path.extname(file.originalname));
   },
 });
 const upload = multer({ storage: storage });
 
-// Function to generate a unique numeric employee ID
-const generateEmployeeID = async () => {
-  let isUnique = false;
-  let newID;
-
-  while (!isUnique) {
-    newID = Math.floor(100000 + Math.random() * 900000); // Generates a 6-digit random number
-    const existingEmployee = await Employee.findOne({ employeeId: newID });
-    if (!existingEmployee) {
-      isUnique = true;
-    }
-  }
-  return newID;
-};
-
-// Register Employee
+// Register Employee (Manual Employee ID)
 const registerEmployee = async (req, res) => {
   try {
-    const { FullName, age, gender, phone, email, password, companyName, Location } = req.body;
+    const { employeeId, Name, phone, email, password, companyName, Location } = req.body;
 
-    if (!email || email.trim() === "") {
-      return res.status(400).json({ message: "Email is required" });
+    // Validate Employee ID (Must start with LNRS + 9 digits)
+    const idPattern = /^LNRS\d{9}$/;
+    if (!employeeId || !idPattern.test(employeeId)) {
+      return res.status(400).json({ message: "Invalid Employee ID. It must start with 'LNRS' followed by 9 digits." });
     }
 
+    // Check if Employee ID already exists
+    const existingId = await Employee.findOne({ employeeId });
+    if (existingId) {
+      return res.status(400).json({ message: "Employee ID already exists. Please choose a different ID." });
+    }
+
+    // Check if email already exists
     const existingUser = await Employee.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    const employeeId = await generateEmployeeID(); // Generates a unique 6-digit number
     const photo = req.file ? `/uploads/${req.file.filename}` : "";
 
     const newEmployee = new Employee({
       employeeId,
-      FullName,
-      age,
-      gender,
+      Name,
       phone,
       email,
       password: hashedPassword,
@@ -63,9 +55,6 @@ const registerEmployee = async (req, res) => {
     res.status(201).json({ message: "Employee registered successfully", employeeId, photo });
   } catch (err) {
     console.error("Error saving employee:", err);
-    if (err.code === 11000) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
@@ -102,11 +91,9 @@ const loginEmployee = async (req, res) => {
       token,
       employee: {
         employeeId: employee.employeeId,
-        FullName: employee.FullName,
+        Name: employee.Name,
         email: employee.email,
         photo: employee.photo || "",
-        age: employee.age,
-        gender: employee.gender,
         phone: employee.phone,
         companyName: employee.companyName,
         Location: employee.Location,
@@ -121,7 +108,7 @@ const loginEmployee = async (req, res) => {
 // Get All Employees
 const getAllEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find().select("-password"); // Exclude passwords
+    const employees = await Employee.find().select("-password");
     res.json({ message: "Employees retrieved successfully", employees });
   } catch (err) {
     console.error("Error fetching employees:", err);
@@ -132,7 +119,7 @@ const getAllEmployees = async (req, res) => {
 // Get Employee by ID
 const getEmployeeById = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ employeeId: req.params.id }).select("+password");
+    const employee = await Employee.findOne({ employeeId: req.params.id }).select("-password");
     if (!employee) return res.status(404).json({ message: "Employee not found" });
     res.json(employee);
   } catch (err) {
@@ -144,9 +131,9 @@ const getEmployeeById = async (req, res) => {
 // Update Employee
 const updateEmployee = async (req, res) => {
   try {
-    const { FullName, age, gender, phone, email, companyName, Location } = req.body;
-    const updateData = { FullName, age, gender, phone, email, companyName, Location };
-    if (req.file) updateData.photo = req.file.path;
+    const { Name, phone, email, companyName, Location } = req.body;
+    const updateData = { Name, phone, email, companyName, Location };
+    if (req.file) updateData.photo = `/uploads/${req.file.filename}`;
 
     const employee = await Employee.findOneAndUpdate(
       { employeeId: req.params.id },
@@ -172,22 +159,18 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
-// 🔥 Search Employee by Name (Updated Route)
+// Search Employee by Name
 const searchEmployeeByName = async (req, res) => {
   try {
     const { name } = req.params;
-
     if (!name) {
       return res.status(400).json({ message: "Name parameter is required" });
     }
-
-    const employees = await Employee.find({ FullName: { $regex: name, $options: "i" } });
-
+    const employees = await Employee.find({ Name: { $regex: name, $options: "i" } });
     if (employees.length === 0) {
       return res.status(404).json({ message: "No employees found" });
     }
-
-    res.json(employees[0]); // Send the first matching employee
+    res.json(employees[0]);
   } catch (err) {
     console.error("Search Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
