@@ -3,6 +3,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const path = require("path");
 const employeeRoutes = require("./temproutes/employeeRoutes"); 
 
 
@@ -12,7 +13,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors());
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(express.urlencoded({ extended: true })); 
 // MongoDB Connection
 
